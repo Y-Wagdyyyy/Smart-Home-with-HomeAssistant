@@ -1,0 +1,24 @@
+mqtt:
+  enabled: True
+  host: 192.168.1.15  # Replace with your MQTT broker IP
+  port: 1883
+  user: "yousef"  # Use the username from your Mosquitto broker setup
+  password: "Yo-2004-sf"  # Use your configured MQTT password
+
+detectors:
+  cpu:
+    type: cpu  # Using CPU instead of Coral TPU
+
+cameras:
+  my_camera:
+    ffmpeg:
+      inputs:
+        - path: /dev/video0
+          roles:
+            - detect
+            - record
+    detect:
+      width: 640
+      height: 480
+      fps: 5
+    rotation: 180  # Optional if you need to rotate the camera

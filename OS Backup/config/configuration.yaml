@@ -1,0 +1,20 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+switch:
+  - platform: command_line
+    switches:
+      arduino_led:
+        command_on: "echo 'ON' > /dev/ttyACM0"
+        command_off: "echo 'OFF' > /dev/ttyACM0"
+
+homekit:
+    name: "Home Assistant Bridge"
