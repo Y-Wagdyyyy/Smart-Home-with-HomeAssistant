@@ -1,0 +1,220 @@
+esphome:
+  name: esp-32
+  friendly_name: ESP 32
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  platform: esphome
+  password: "989838026570dde6fcdbd0994bc5a712"
+
+
+wifi:
+  ssid: "WE4FA74E"
+  password: "k9250585"
+
+  ap:
+
+captive_portal:
+
+# PIR Motion Sensor
+binary_sensor:
+  - platform: gpio
+    pin: GPIO2
+    name: "PIR Motion Sensor"
+    device_class: motion
+
+  # Smoke Sensor (MQ-2)
+  - platform: gpio
+    pin: GPIO35
+    name: "Smoke Detector"
+    device_class: smoke
+    filters:
+      - delayed_on: 500ms
+      - delayed_off: 1s
+      - lambda: return !x;  # Invert the sensor value
+    on_press:
+      - output.turn_on: buzzer_output  # Turn on buzzer when smoke is detected (after inversion)
+    on_release:
+      - output.turn_off: buzzer_output  # Turn off buzzer when no smoke is detected (after inversion)
+
+  - platform: gpio
+    pin: GPIO22
+    name: "Soil Moisture Sensor"
+    device_class: moisture
+    filters:
+      - delayed_on: 500ms
+      - delayed_off: 1s
+      - lambda: return !x;  # This inverts the sensor's signal
+    on_press:
+      - switch.turn_on: dc_pump  # Turn on pump when soil is dry (after inversion)
+    on_release:
+      - switch.turn_off: dc_pump  # Turn off pump when soil is wet (after inversion)
+
+
+  # External Trigger for New Servo
+  - platform: gpio
+    pin: GPIO23
+    name: "External Trigger"
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - servo.write:
+          id: new_servo
+          level: 0.67  # Moves to 120 degrees
+    on_release:
+      - servo.write:
+          id: new_servo
+          level: 0.0  # Moves back to 0 degrees
+
+# Define PWM outputs for Servos and Buzzer
+output:
+  - platform: ledc
+    pin: GPIO14
+    id: servo1_output
+    frequency: 50Hz
+
+  - platform: ledc
+    pin: GPIO33
+    id: servo2_output
+    frequency: 50Hz
+
+  - platform: ledc
+    pin: GPIO25  # New servo output
+    id: new_servo_output
+    frequency: 50Hz
+
+  - platform: gpio
+    pin: GPIO5
+    id: buzzer_output
+
+# Define the Servo Components
+servo:
+  - id: my_servo1
+    output: servo1_output
+    min_level: 1%
+    max_level: 12.5%
+
+  - id: my_servo2
+    output: servo2_output
+    min_level: 1%
+    max_level: 12.5%
+
+  - id: new_servo
+    output: new_servo_output
+    min_level: 2%
+    max_level: 12.5%
+
+# Digital Output Pins for Controlling Relays or LEDs
+switch:
+  - platform: gpio
+    pin: GPIO16
+    name: "Living Light G16"
+    id: relay_1
+
+  - platform: gpio
+    pin: GPIO17
+    name: "Office Fan G17"
+    id: relay_2
+
+  - platform: gpio
+    pin: GPIO18
+    name: "Office AC G18"
+    id: ac_led_1
+
+  - platform: gpio
+    pin: GPIO19
+    name: "Bedroom AC G19"
+    id: ac_led_2
+
+  - platform: gpio
+    pin: GPIO21
+    name: "DC Pump"
+    id: dc_pump
+    inverted: true
+
+
+# Temperature Sensor (NTC)
+sensor:
+  - platform: ntc
+    sensor: resistance_sensor
+    name: "NTC Temperature Sensor"
+    unit_of_measurement: "°C"
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25
+      reference_resistance: 10000
+
+  - platform: resistance
+    id: resistance_sensor
+    sensor: adc_sensor
+    configuration: UPSTREAM
+    resistor: 6700Ω
+
+  - platform: adc
+    id: adc_sensor
+    pin: 34
+    attenuation: 11db
+    update_interval: 5s
+    filters:
+      - median:
+          window_size: 7
+          send_every: 4
+      - exponential_moving_average:
+          alpha: 0.1
+          send_every: 2 
+
+  # Humidity Sensor (DHT22)
+  - platform: dht
+    pin: GPIO4
+    model: DHT22
+    temperature:
+      name: "Room Temperature"
+    humidity:
+      name: "Room Humidity"
+    update_interval: 10s
+
+# Add Home Assistant Control for Servos
+number:
+  - platform: template
+    name: "Servo 1 Position"
+    min_value: 0
+    max_value: 180
+    step: 1
+    optimistic: true
+    set_action:
+      - servo.write:
+          id: my_servo1
+          level: !lambda 'return x / 180.0;'
+
+  - platform: template
+    name: "Servo 2 Position"
+    min_value: 0
+    max_value: 180
+    step: 1
+    optimistic: true
+    set_action:
+      - servo.write:
+          id: my_servo2
+          level: !lambda 'return x / 180.0;'
+
+  - platform: template
+    name: "New Servo Position"
+    min_value: 0
+    max_value: 180
+    step: 1
+    optimistic: true
+    set_action:
+      - servo.write:
+          id: new_servo
+          level: !lambda 'return x / 180.0;'
